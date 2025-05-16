@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Compliment Mirror</title>
+<style>
+  body {
+    background: #ffd6e8;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+  }
+  .mirror {
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 0 15px #a0c4ff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: 1.2rem;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: opacity 0.5s ease;
+  }
+  .buttons button {
+    background: #ff9aa2;
+    border: none;
+    padding: 10px 20px;
+    margin: 0 8px 15px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px #ffb6b9aa;
+    transition: background-color 0.3s;
+  }
+  .buttons button:hover {
+    background: #ff6f7d;
+  }
+  input[type="text"] {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    width: 180px;
+    margin-right: 10px;
+  }
+  #allComplimentsList {
+    max-height: 150px;
+    width: 300px;
+    overflow-y: auto;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 0 10px #a0c4ff;
+    padding: 10px;
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+  #allComplimentsList p {
+    margin: 5px 0;
+    border-bottom: 1px solid #eee;
+  }
+</style>
+</head>
+<body>
+
+<div class="mirror" id="complimentDisplay">Welcome! Click a button for a compliment.</div>
+
+<div class="buttons">
+  <button id="dailyBtn">Get Daily Compliment</button>
+  <button id="showAllBtn">Show All Compliments</button>
+</div>
+
+<div>
+  <input type="text" id="submitInput" placeholder="Write a compliment..." />
+  <button id="submitBtn">Submit</button>
+</div>
+
+<div id="allComplimentsList" style="display:none;"></div>
+
+<script>
+  const complimentDisplay = document.getElementById('complimentDisplay');
+  const dailyBtn = document.getElementById('dailyBtn');
+  const showAllBtn = document.getElementById('showAllBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  const submitInput = document.getElementById('submitInput');
+  const allComplimentsList = document.getElementById('allComplimentsList');
+
+  // Show daily compliment (from API + localStorage)
+  dailyBtn.onclick = async () => {
+    allComplimentsList.style.display = 'none'; // hide all list
+    const today = new Date().toISOString().slice(0,10);
+    const storedDate = localStorage.getItem('complimentDate');
+    const storedCompliment = localStorage.getItem('complimentText');
+
+    if (storedDate === today && storedCompliment) {
+      complimentDisplay.textContent = storedCompliment;
+    } else {
+      const res = await fetch('/compliment');
+      const data = await res.json();
+      complimentDisplay.textContent = data.compliment;
+      localStorage.setItem('complimentDate', today);
+      localStorage.setItem('complimentText', data.compliment);
+    }
+  };
+
+  // Show all compliments submitted
+  showAllBtn.onclick = async () => {
+    const res = await fetch('/compliments/all');
+    const data = await res.json();
+    allComplimentsList.innerHTML = ''; // clear old
+
+    if (data.compliments.length === 0) {
+      allComplimentsList.innerHTML = '<p>No compliments found.</p>';
+    } else {
+      data.compliments.forEach(c => {
+        const p = document.createElement('p');
+        p.textContent = c;
+        allComplimentsList.appendChild(p);
+      });
+    }
+
+    allComplimentsList.style.display = 'block';
+    complimentDisplay.textContent = 'Here are all compliments:';
+  };
+
+  // Submit new compliment
+  submitBtn.onclick = async () => {
+    const text = submitInput.value.trim();
+    if (!text) {
+      alert('Please write a compliment to submit.');
+      return;
+    }
+
+    const res = await fetch('/submit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ compliment: text })
+    });
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      complimentDisplay.textContent = text;
+      localStorage.setItem('complimentDate', new Date().toISOString().slice(0,10));
+      localStorage.setItem('complimentText', text);
+      submitInput.value = '';
+      alert('Thank you for your compliment!');
+    } else {
+      alert(data.message || 'Error submitting compliment.');
+    }
+  };
+</script>
+
+</body>
+</html>
